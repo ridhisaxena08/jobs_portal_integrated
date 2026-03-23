@@ -1,0 +1,504 @@
+const sqlite3 = require('sqlite3');
+const path = require('path');
+
+// Database file path
+const dbPath = path.join(__dirname, 'job_applications.db');
+
+// Create database connection
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error opening database:', err.message);
+  } else {
+    console.log('Connected to SQLite database');
+    initializeDatabase();
+  }
+});
+
+// Initialize database tables
+function initializeDatabase() {
+  // Create users table for authentication
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  // Create profiles table for detailed user information
+  const createProfilesTable = `
+    CREATE TABLE IF NOT EXISTS profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      phone TEXT,
+      location TEXT,
+      bio TEXT,
+      skills TEXT,
+      experience TEXT,
+      education TEXT,
+      linkedin TEXT,
+      github TEXT,
+      portfolio TEXT,
+      profile_picture TEXT,
+      resume_filename TEXT,
+      resume_path TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+  `;
+
+  // Create applications table
+  const createApplicationsTable = `
+    CREATE TABLE IF NOT EXISTS applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      job_id TEXT,
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      linkedin TEXT,
+      portfolio TEXT,
+      resume_filename TEXT NOT NULL,
+      resume_path TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+  `;
+
+  db.run(createUsersTable, (err) => {
+    if (err) {
+      console.error('Error creating users table:', err.message);
+    } else {
+      console.log('Users table created successfully');
+    }
+  });
+
+  db.run(createProfilesTable, (err) => {
+    if (err) {
+      console.error('Error creating profiles table:', err.message);
+    } else {
+      console.log('Profiles table created successfully');
+    }
+  });
+
+  db.run(createApplicationsTable, (err) => {
+    if (err) {
+      console.error('Error creating applications table:', err.message);
+    } else {
+      console.log('Applications table created successfully');
+    }
+  });
+}
+
+// Database operations
+export const dbOperations = {
+  // User operations
+  createUser: (user) => {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT INTO users (email, password, full_name)
+        VALUES (?, ?, ?)
+      `;
+      
+      db.run(sql, [
+        user.email,
+        user.password,
+        user.full_name
+      ], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  getUserByEmail: (email) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM users WHERE email = ?';
+      db.get(sql, [email], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  getUserById: (id) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM users WHERE id = ?';
+      db.get(sql, [id], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  updateUser: (id, updates) => {
+    return new Promise((resolve, reject) => {
+      const fields = [];
+      const values = [];
+      
+      if (updates.full_name) {
+        fields.push('full_name = ?');
+        values.push(updates.full_name);
+      }
+      if (updates.email) {
+        fields.push('email = ?');
+        values.push(updates.email);
+      }
+      
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+      
+      const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+      
+      db.run(sql, values, function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  // Profile operations
+  createProfile: (profile) => {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT INTO profiles (user_id, phone, location, bio, skills, experience, education, linkedin, github, portfolio, profile_picture, resume_filename, resume_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      db.run(sql, [
+        profile.user_id,
+        profile.phone || null,
+        profile.location || null,
+        profile.bio || null,
+        profile.skills || null,
+        profile.experience || null,
+        profile.education || null,
+        profile.linkedin || null,
+        profile.github || null,
+        profile.portfolio || null,
+        profile.profile_picture || null,
+        profile.resume_filename || null,
+        profile.resume_path || null
+      ], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  getProfileByUserId: (userId) => {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT u.*, p.* 
+        FROM users u 
+        LEFT JOIN profiles p ON u.id = p.user_id 
+        WHERE u.id = ?
+      `;
+      db.get(sql, [userId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  updateProfile: (userId, updates) => {
+    return new Promise((resolve, reject) => {
+      const fields = [];
+      const values = [];
+      
+      if (updates.phone !== undefined) {
+        fields.push('phone = ?');
+        values.push(updates.phone);
+      }
+      if (updates.location !== undefined) {
+        fields.push('location = ?');
+        values.push(updates.location);
+      }
+      if (updates.bio !== undefined) {
+        fields.push('bio = ?');
+        values.push(updates.bio);
+      }
+      if (updates.skills !== undefined) {
+        fields.push('skills = ?');
+        values.push(Array.isArray(updates.skills) ? updates.skills.join(', ') : updates.skills);
+      }
+      if (updates.experience !== undefined) {
+        fields.push('experience = ?');
+        values.push(updates.experience);
+      }
+      if (updates.education !== undefined) {
+        fields.push('education = ?');
+        values.push(updates.education);
+      }
+      if (updates.linkedin !== undefined) {
+        fields.push('linkedin = ?');
+        values.push(updates.linkedin);
+      }
+      if (updates.github !== undefined) {
+        fields.push('github = ?');
+        values.push(updates.github);
+      }
+      if (updates.portfolio !== undefined) {
+        fields.push('portfolio = ?');
+        values.push(updates.portfolio);
+      }
+      if (updates.profile_picture !== undefined) {
+        fields.push('profile_picture = ?');
+        values.push(updates.profile_picture);
+      }
+      if (updates.resume_filename !== undefined) {
+        fields.push('resume_filename = ?');
+        values.push(updates.resume_filename);
+      }
+      if (updates.resume_path !== undefined) {
+        fields.push('resume_path = ?');
+        values.push(updates.resume_path);
+      }
+      
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(userId);
+      
+      const sql = `
+        UPDATE profiles 
+        SET ${fields.join(', ')} 
+        WHERE user_id = ?
+      `;
+      
+      db.run(sql, values, function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  upsertProfile: (userId, profileData) => {
+    return new Promise((resolve, reject) => {
+      // First check if profile exists
+      const checkSql = 'SELECT id FROM profiles WHERE user_id = ?';
+      db.get(checkSql, [userId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else if (row) {
+          // Update existing profile
+          dbOperations.updateProfile(userId, profileData)
+            .then(resolve)
+            .catch(reject);
+        } else {
+          // Create new profile
+          const newProfile = { user_id: userId, ...profileData };
+          dbOperations.createProfile(newProfile)
+            .then(resolve)
+            .catch(reject);
+        }
+      });
+    });
+  },
+
+  deleteProfile: (userId) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'DELETE FROM profiles WHERE user_id = ?';
+      db.run(sql, [userId], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  // Application operations (updated to work with users)
+  insertApplication: (application) => {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT INTO applications (user_id, job_id, full_name, email, phone, linkedin, portfolio, resume_filename, resume_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      db.run(sql, [
+        application.user_id || null,
+        application.job_id || null,
+        application.full_name,
+        application.email,
+        application.phone,
+        application.linkedin || null,
+        application.portfolio || null,
+        application.resume_filename,
+        application.resume_path
+      ], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  checkEmailExists: (email) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT id FROM users WHERE email = ?';
+      db.get(sql, [email], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(!!row);
+        }
+      });
+    });
+  },
+
+  getAllApplications: () => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM applications ORDER BY created_at DESC';
+      db.all(sql, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  },
+
+  getApplicationById: (id) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM applications WHERE id = ?';
+      db.get(sql, [id], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  getApplicationsByUserId: (userId) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM applications WHERE user_id = ? ORDER BY created_at DESC';
+      db.all(sql, [userId], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  },
+
+  updateApplication: (id, updates) => {
+    return new Promise((resolve, reject) => {
+      const fields = [];
+      const values = [];
+      
+      if (updates.full_name) {
+        fields.push('full_name = ?');
+        values.push(updates.full_name);
+      }
+      if (updates.email) {
+        fields.push('email = ?');
+        values.push(updates.email);
+      }
+      if (updates.phone) {
+        fields.push('phone = ?');
+        values.push(updates.phone);
+      }
+      if (updates.linkedin !== undefined) {
+        fields.push('linkedin = ?');
+        values.push(updates.linkedin);
+      }
+      if (updates.portfolio !== undefined) {
+        fields.push('portfolio = ?');
+        values.push(updates.portfolio);
+      }
+      if (updates.status !== undefined) {
+        fields.push('status = ?');
+        values.push(updates.status);
+      }
+      
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+      
+      const sql = `UPDATE applications SET ${fields.join(', ')} WHERE id = ?`;
+      
+      db.run(sql, values, function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  deleteApplication: (id) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'DELETE FROM applications WHERE id = ?';
+      db.run(sql, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  },
+
+  getApplicationsCount: () => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT COUNT(*) as count FROM applications';
+      db.get(sql, [], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  }
+};
+
+// Close database connection
+const closeDatabase = () => {
+  db.close((err) => {
+    if (err) {
+      console.error('Error closing database:', err.message);
+    } else {
+      console.log('Database connection closed');
+    }
+  });
+};
+
+// Handle process termination
+process.on('SIGINT', closeDatabase);
+process.on('SIGTERM', closeDatabase);
+
+module.exports = { dbOperations, closeDatabase };
