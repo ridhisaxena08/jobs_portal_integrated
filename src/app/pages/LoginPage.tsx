@@ -29,7 +29,7 @@ export const LoginPage = () => {
         if (user.role === 'employer') {
           navigate('/hr-dashboard');
         } else {
-          navigate('/job-seeker-dashboard');
+          navigate('/');
         }
       } else {
         setError(result.message || 'Login failed');

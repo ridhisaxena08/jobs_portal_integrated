@@ -35,8 +35,11 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
-      headers: this.getAuthHeaders(),
-      ...options
+      ...options,
+      headers: {
+        ...this.getAuthHeaders(),
+        ...(options.headers || {})
+      }
     };
 
     try {
@@ -76,8 +79,8 @@ class ApiService {
   }
 
   // DELETE request
-  async delete(endpoint) {
-    return this.request(endpoint, { method: 'DELETE' });
+  async delete(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'DELETE', ...options });
   }
 
   // Authentication endpoints
@@ -149,12 +152,8 @@ class ApiService {
   }
 
   async deleteAccount(password) {
-    return this.delete('/auth/me', { 
-      headers: { 
-        ...this.getAuthHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password }) 
+    return this.delete('/auth/me', {
+      body: JSON.stringify({ password })
     });
   }
 
@@ -236,11 +235,11 @@ class ApiService {
   }
 
   async getNotifications() {
-    return this.get('/notifications');
+    return this.get('/dashboard/notifications');
   }
 
   async markNotificationAsRead(notificationId) {
-    return this.put(`/notifications/${notificationId}/read`);
+    return this.put(`/dashboard/notifications/${notificationId}/read`);
   }
 
   // HR Job Management

@@ -3,11 +3,54 @@ const JobApplication = require('../models/JobApplication');
 const User = require('../models/User');
 const Employee = require('../models/Employee');
 const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
+const db = require('../database');
+
+const getMongoUserId = (req) => {
+  const userId = String(req.user?.id || '');
+  return mongoose.Types.ObjectId.isValid(userId) ? userId : null;
+};
 
 // HR Dashboard Data
 const getHRDashboard = async (req, res) => {
   try {
-    const employerId = req.user.id;
+    const employerId = getMongoUserId(req);
+    if (!employerId) {
+      const postedBy = req.user?.id ?? null;
+      const { jobs, pagination } = await db.getJobsSqlite({ page: 1, limit: 5, postedBy });
+      const { jobs: allJobs } = await db.getJobsSqlite({ page: 1, limit: 200, postedBy });
+
+      const now = new Date();
+      const upcomingDeadlines = allJobs
+        .map((j) => {
+          const d = j.deadline ? new Date(j.deadline) : null;
+          if (!d || Number.isNaN(d.getTime())) return null;
+          const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysLeft < 0) return null;
+          return {
+            jobTitle: j.title,
+            date: d.toISOString(),
+            daysLeft,
+            applicants: j.applicants || 0
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.daysLeft - b.daysLeft)
+        .slice(0, 5);
+
+      return res.json({
+        success: true,
+        data: {
+          totalJobs: pagination.total,
+          totalEmployees: 0,
+          totalApplications: 0,
+          shortlistedCandidates: 0,
+          recentApplications: [],
+          upcomingDeadlines,
+          recentJobs: jobs
+        }
+      });
+    }
     
     // Get all jobs posted by this employer
     const myJobs = await Job.find({ postedBy: employerId });
@@ -66,7 +109,20 @@ const getHRDashboard = async (req, res) => {
 // Job Seeker Dashboard Data
 const getJobSeekerDashboard = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = getMongoUserId(req);
+    if (!userId) {
+      return res.json({
+        success: true,
+        data: {
+          totalApplications: 0,
+          shortlistedApplications: 0,
+          savedJobs: 0,
+          profileViews: 0,
+          recentApplications: [],
+          recommendedJobs: []
+        }
+      });
+    }
     
     // Get user's applications
     const applications = await JobApplication.find({ userId })
@@ -125,7 +181,13 @@ const getJobSeekerDashboard = async (req, res) => {
 // Get Notifications
 const getNotifications = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = getMongoUserId(req);
+    if (!userId) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
     const notifications = await Notification.find({ userId })
       .sort({ createdAt: -1 })
       .limit(50);
@@ -147,7 +209,13 @@ const getNotifications = async (req, res) => {
 const markNotificationAsRead = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user.id;
+    const userId = getMongoUserId(req);
+    if (!userId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found'
+      });
+    }
     
     const notification = await Notification.findOneAndUpdate(
       { _id: notificationId, userId },

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './app/hooks/useAuth';
 import { LandingPage } from './app/pages/LandingPage';
 import { HomePage } from './app/pages/HomePage';
@@ -70,7 +70,7 @@ function App() {
           {/* Job Seeker Dashboard */}
           <Route path="/job-seeker-dashboard" element={
             <ProtectedRoute requiredRole="jobseeker">
-              <JobSeekerDashboard />
+              <Navigate to="/home" replace />
             </ProtectedRoute>
           } />
           

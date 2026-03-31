@@ -1,9 +1,5 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
 // Database file path
 const dbPath = path.join(__dirname, 'job_applications.db');
@@ -49,6 +45,25 @@ function initializeDatabase() {
     )
   `;
 
+  // Create jobs table (SQLite-backed jobs for dashboards/APIs)
+  const createJobsTable = `
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      posted_by INTEGER,
+      title TEXT NOT NULL,
+      company TEXT NOT NULL,
+      type TEXT,
+      category TEXT,
+      experience_level TEXT,
+      work_mode TEXT,
+      deadline TEXT,
+      status TEXT DEFAULT 'active',
+      data_json TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
   db.run(createApplicationsTable, (err) => {
     if (err) {
       console.error('Error creating applications table:', err.message);
@@ -64,10 +79,16 @@ function initializeDatabase() {
       console.log('Users table created successfully');
     }
   });
+
+  db.run(createJobsTable, (err) => {
+    if (err) {
+      console.error('Error creating jobs table:', err.message);
+    }
+  });
 }
 
 // Database operations
-export const dbOperations = {
+module.exports = {
   // Insert new application
   insertApplication: (application) => {
     return new Promise((resolve, reject) => {
@@ -256,11 +277,121 @@ export const dbOperations = {
         }
       });
     });
+  },
+
+  // Jobs operations (SQLite)
+  createJobSqlite: (jobData, postedBy = null) => {
+    return new Promise((resolve, reject) => {
+      const payload = { ...jobData };
+      const title = payload.title || '';
+      const company = payload.company || '';
+      const type = payload.type || null;
+      const category = payload.category || null;
+      const experienceLevel = payload.experienceLevel || payload.experience_level || null;
+      const workMode = payload.workMode || payload.work_mode || null;
+      const deadline = payload.deadline || null;
+      const status = payload.status || 'active';
+
+      const sql = `
+        INSERT INTO jobs (posted_by, title, company, type, category, experience_level, work_mode, deadline, status, data_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      db.run(
+        sql,
+        [
+          postedBy,
+          title,
+          company,
+          type,
+          category,
+          experienceLevel,
+          workMode,
+          deadline,
+          status,
+          JSON.stringify(payload)
+        ],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ id: this.lastID, ...payload, postedBy });
+        }
+      );
+    });
+  },
+
+  getJobsSqlite: ({ page = 1, limit = 10, postedBy = null } = {}) => {
+    return new Promise((resolve, reject) => {
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      const where = [];
+      const params = [];
+      if (postedBy !== null && postedBy !== undefined) {
+        where.push('posted_by = ?');
+        params.push(postedBy);
+      }
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+      const sql = `
+        SELECT * FROM jobs
+        ${whereSql}
+        ORDER BY datetime(created_at) DESC
+        LIMIT ? OFFSET ?
+      `;
+      const countSql = `SELECT COUNT(*) as count FROM jobs ${whereSql}`;
+
+      db.get(countSql, params, (cerr, crow) => {
+        if (cerr) return reject(cerr);
+        db.all(sql, [...params, limitNum, offset], (err, rows) => {
+          if (err) return reject(err);
+          const jobs = rows.map((r) => {
+            let data = {};
+            try { data = JSON.parse(r.data_json || '{}'); } catch {}
+            return {
+              ...data,
+              id: r.id,
+              postedBy: r.posted_by,
+              createdAt: r.created_at,
+              updatedAt: r.updated_at
+            };
+          });
+          resolve({
+            jobs,
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: crow?.count || 0,
+              pages: Math.ceil((crow?.count || 0) / limitNum)
+            }
+          });
+        });
+      });
+    });
+  },
+
+  getJobByIdSqlite: (id) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM jobs WHERE id = ?';
+      db.get(sql, [id], (err, row) => {
+        if (err) return reject(err);
+        if (!row) return resolve(null);
+        let data = {};
+        try { data = JSON.parse(row.data_json || '{}'); } catch {}
+        resolve({
+          ...data,
+          id: row.id,
+          postedBy: row.posted_by,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        });
+      });
+    });
   }
 };
 
 // Close database connection
-export const closeDatabase = () => {
+const closeDatabase = () => {
   db.close((err) => {
     if (err) {
       console.error('Error closing database:', err.message);
@@ -273,3 +404,5 @@ export const closeDatabase = () => {
 // Handle process termination
 process.on('SIGINT', closeDatabase);
 process.on('SIGTERM', closeDatabase);
+
+module.exports.closeDatabase = closeDatabase;

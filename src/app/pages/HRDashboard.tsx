@@ -35,13 +35,16 @@ export const HRDashboard = () => {
     totalApplications: 0,
     shortlistedCandidates: 0,
     recentApplications: [],
-    upcomingDeadlines: []
+    upcomingDeadlines: [],
+    recentJobs: []
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [myJobsLoading, setMyJobsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchMyJobs();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -55,6 +58,24 @@ export const HRDashboard = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMyJobs = async () => {
+    try {
+      setMyJobsLoading(true);
+      const response = await api.getMyJobs({ page: 1, limit: 5 });
+      if (response.success) {
+        setStats((prev) => ({
+          ...prev,
+          recentJobs: response.data.jobs,
+          totalJobs: response.data.pagination?.total ?? prev.totalJobs
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching my jobs:', error);
+    } finally {
+      setMyJobsLoading(false);
     }
   };
 
@@ -279,6 +300,66 @@ export const HRDashboard = () => {
           gridTemplateColumns: '1fr 1fr',
           gap: '32px'
         }}>
+          {/* Recent Jobs */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111', margin: 0 }}>
+                Recently Posted Jobs
+              </h2>
+              <Link to="/my-jobs" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '14px' }}>
+                View All
+              </Link>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {myJobsLoading ? (
+                <div style={{ padding: '14px', borderRadius: '8px', background: '#fafafa', color: '#6b7280', fontSize: '13px' }}>
+                  Loading jobs...
+                </div>
+              ) : (
+                (stats.recentJobs || []).slice(0, 5).map((job, index) => (
+                <div key={job.id ?? index} style={{
+                  padding: '14px',
+                  border: '1px solid #f3f4f6',
+                  borderRadius: '8px',
+                  background: '#fafafa'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#111', margin: '0 0 4px 0' }}>
+                        {job.title}
+                      </h4>
+                      <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                        {job.company} {job.type ? `• ${job.type}` : ''}
+                      </p>
+                    </div>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      background: '#e0f2fe',
+                      color: '#0369a1'
+                    }}>
+                      {job.status || 'active'}
+                    </span>
+                  </div>
+                </div>
+              ))
+              )}
+
+              {!myJobsLoading && (!stats.recentJobs || stats.recentJobs.length === 0) && (
+                <div style={{ padding: '14px', borderRadius: '8px', background: '#fafafa', color: '#6b7280', fontSize: '13px' }}>
+                  No jobs posted yet. Click “Post New Job” to create one.
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={{
             background: '#fff',
             borderRadius: '12px',

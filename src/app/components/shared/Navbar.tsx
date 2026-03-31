@@ -32,6 +32,8 @@ export const Navbar = () => {
     }
   };
 
+  const profileRoute = currentUser?.role === 'employer' ? '/hr-dashboard' : '/profile';
+
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/jobs', label: 'Find Jobs', icon: Search },
@@ -450,7 +452,7 @@ export const Navbar = () => {
                   {isUserMenuOpen && (
                     <div className="jp-dropdown">
                       <Link
-                        to="/profile"
+                        to={profileRoute}
                         className="jp-dropdown-item"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
@@ -528,7 +530,7 @@ export const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link
-                    to="/profile"
+                    to={profileRoute}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="jp-mobile-link"
                   >

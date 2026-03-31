@@ -1,5 +1,6 @@
 const Job = require('../models/Job');
 const mongoose = require('mongoose');
+const db = require('../database');
 
 // Send Response Helper
 const sendResponse = (res, statusCode, success, message, data = null) => {
@@ -10,79 +11,51 @@ const sendResponse = (res, statusCode, success, message, data = null) => {
   });
 };
 
+const normalizePayload = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map(normalizePayload)
+      .filter((v) => v !== undefined && v !== null && v !== '');
+  }
+
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const nv = normalizePayload(v);
+      if (nv === '' || nv === undefined) continue;
+      out[k] = nv;
+    }
+    return out;
+  }
+
+  if (value === '') return undefined;
+  return value;
+};
+
+const coerceJobNumbers = (jobData) => {
+  const out = { ...jobData };
+  if (out.salary && typeof out.salary === 'object') {
+    const salary = { ...out.salary };
+    if (salary.min !== undefined && salary.min !== null && salary.min !== '') salary.min = Number(salary.min);
+    if (salary.max !== undefined && salary.max !== null && salary.max !== '') salary.max = Number(salary.max);
+    out.salary = salary;
+  }
+  return out;
+};
+
 // @desc    Get all jobs with filtering and pagination
 // @route   GET /api/jobs
 // @access  Public
 const getJobs = async (req, res) => {
   try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      // Return mock data when database is not connected
-      const mockJobs = [
-        {
-          id: '1',
-          title: 'Senior Frontend Developer',
-          company: 'TechCorp',
-          location: 'San Francisco, CA',
-          type: 'full-time',
-          category: 'engineering',
-          description: 'We are looking for an experienced frontend developer...',
-          requirements: ['React', 'TypeScript', 'Node.js'],
-          salary: '$120k - $160k',
-          featured: true,
-          urgent: false,
-          postedAt: new Date().toISOString(),
-          applicants: 45
-        },
-        {
-          id: '2',
-          title: 'Product Designer',
-          company: 'DesignHub',
-          location: 'New York, NY',
-          type: 'full-time',
-          category: 'design',
-          description: 'Join our design team to create amazing user experiences...',
-          requirements: ['Figma', 'UI/UX', 'Prototyping'],
-          salary: '$90k - $130k',
-          featured: true,
-          urgent: false,
-          postedAt: new Date().toISOString(),
-          applicants: 32
-        },
-        {
-          id: '3',
-          title: 'Backend Engineer',
-          company: 'StartupXYZ',
-          location: 'Remote',
-          type: 'full-time',
-          category: 'engineering',
-          description: 'Looking for a backend engineer to help build our platform...',
-          requirements: ['Node.js', 'MongoDB', 'AWS'],
-          salary: '$100k - $140k',
-          featured: true,
-          urgent: true,
-          postedAt: new Date().toISOString(),
-          applicants: 28
-        }
-      ];
+    const requestUserId = req.user?.id;
+    const isSqliteUser = requestUserId !== undefined && requestUserId !== null && !mongoose.Types.ObjectId.isValid(String(requestUserId));
 
-      return sendResponse(res, 200, true, 'Jobs retrieved successfully (demo data)', {
-        jobs: mockJobs,
-        pagination: {
-          page: 1,
-          limit: 6,
-          total: 3,
-          pages: 1
-        },
-        filters: {
-          category: req.query.category || 'all',
-          type: req.query.type || 'all',
-          location: req.query.location || '',
-          search: req.query.search || '',
-          sortBy: req.query.sortBy || 'postedAt',
-          sortOrder: req.query.sortOrder || 'desc'
-        }
-      });
+    // If you're using SQLite-auth (numeric ids) OR Mongo isn't connected, serve jobs from SQLite
+    if (isSqliteUser || mongoose.connection.readyState !== 1) {
+      const { page = 1, limit = 10 } = req.query;
+      const result = await db.getJobsSqlite({ page, limit });
+      return sendResponse(res, 200, true, 'Jobs retrieved successfully', result);
     }
 
     const {
@@ -171,43 +144,8 @@ const getJobs = async (req, res) => {
 
   } catch (error) {
     console.error('Get jobs error:', error);
-    
-    // Return mock data on error
-    const mockJobs = [
-      {
-        id: '1',
-        title: 'Senior Frontend Developer',
-        company: 'TechCorp',
-        location: 'San Francisco, CA',
-        type: 'full-time',
-        category: 'engineering',
-        description: 'We are looking for an experienced frontend developer...',
-        requirements: ['React', 'TypeScript', 'Node.js'],
-        salary: '$120k - $160k',
-        featured: true,
-        urgent: false,
-        postedAt: new Date().toISOString(),
-        applicants: 45
-      }
-    ];
 
-    sendResponse(res, 200, true, 'Jobs retrieved successfully (fallback data)', {
-      jobs: mockJobs,
-      pagination: {
-        page: 1,
-        limit: 6,
-        total: 1,
-        pages: 1
-      },
-      filters: {
-        category: req.query.category || 'all',
-        type: req.query.type || 'all',
-        location: req.query.location || '',
-        search: req.query.search || '',
-        sortBy: req.query.sortBy || 'postedAt',
-        sortOrder: req.query.sortOrder || 'desc'
-      }
-    });
+    sendResponse(res, 500, false, 'Server error while fetching jobs');
   }
 };
 
@@ -217,6 +155,15 @@ const getJobs = async (req, res) => {
 const getJobById = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const requestUserId = req.user?.id;
+    const isSqliteUser = requestUserId !== undefined && requestUserId !== null && !mongoose.Types.ObjectId.isValid(String(requestUserId));
+
+    if (isSqliteUser || mongoose.connection.readyState !== 1) {
+      const job = await db.getJobByIdSqlite(id);
+      if (!job) return sendResponse(res, 404, false, 'Job not found');
+      return sendResponse(res, 200, true, 'Job retrieved successfully', job);
+    }
     
     const job = await Job.findById(id);
     
@@ -241,19 +188,58 @@ const getJobById = async (req, res) => {
   }
 };
 
+// @desc    Get jobs posted by current user (SQLite users)
+// @route   GET /api/jobs/my-jobs
+// @access  Private
+const getMyJobs = async (req, res) => {
+  try {
+    const requestUserId = req.user?.id;
+    const isSqliteUser =
+      requestUserId !== undefined &&
+      requestUserId !== null &&
+      !mongoose.Types.ObjectId.isValid(String(requestUserId));
+
+    if (!isSqliteUser) {
+      return sendResponse(res, 400, false, 'my-jobs is only available for SQLite-auth users');
+    }
+
+    const { page = 1, limit = 10 } = req.query;
+    const result = await db.getJobsSqlite({ page, limit, postedBy: requestUserId });
+    return sendResponse(res, 200, true, 'My jobs retrieved successfully', result);
+  } catch (error) {
+    console.error('Get my jobs error:', error);
+    return sendResponse(res, 500, false, 'Server error while fetching my jobs');
+  }
+};
+
 // @desc    Create new job
 // @route   POST /api/jobs
 // @access  Private (would need admin middleware)
 const createJob = async (req, res) => {
   try {
-    const jobData = req.body;
-    
-    const job = await Job.create(jobData);
+    const jobData = coerceJobNumbers(normalizePayload(req.body));
 
+    const requestUserId = req.user?.id;
+    const isSqliteUser = requestUserId !== undefined && requestUserId !== null && !mongoose.Types.ObjectId.isValid(String(requestUserId));
+
+    if (isSqliteUser || mongoose.connection.readyState !== 1) {
+      const postedBy = req.user?.id ?? null;
+      const created = await db.createJobSqlite(jobData, postedBy);
+      return sendResponse(res, 201, true, 'Job created successfully', created);
+    }
+
+    const job = await Job.create(jobData);
     sendResponse(res, 201, true, 'Job created successfully', job);
 
   } catch (error) {
     console.error('Create job error:', error);
+    if (error?.name === 'ValidationError') {
+      return sendResponse(res, 400, false, error.message, {
+        errors: Object.fromEntries(
+          Object.entries(error.errors || {}).map(([k, v]) => [k, v.message])
+        )
+      });
+    }
     sendResponse(res, 500, false, 'Server error while creating job');
   }
 };
@@ -264,7 +250,7 @@ const createJob = async (req, res) => {
 const updateJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = coerceJobNumbers(normalizePayload(req.body));
     
     const job = await Job.findByIdAndUpdate(
       id, 
@@ -280,6 +266,13 @@ const updateJob = async (req, res) => {
 
   } catch (error) {
     console.error('Update job error:', error);
+    if (error?.name === 'ValidationError') {
+      return sendResponse(res, 400, false, error.message, {
+        errors: Object.fromEntries(
+          Object.entries(error.errors || {}).map(([k, v]) => [k, v.message])
+        )
+      });
+    }
     sendResponse(res, 500, false, 'Server error while updating job');
   }
 };
@@ -378,6 +371,7 @@ const getJobStats = async (req, res) => {
 module.exports = {
   getJobs,
   getJobById,
+  getMyJobs,
   createJob,
   updateJob,
   deleteJob,

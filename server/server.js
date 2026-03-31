@@ -32,11 +32,15 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/auth');
 const jobApplicationRoutes = require('./routes/jobApplications');
 const jobRoutes = require('./routes/jobs');
+const dashboardRoutes = require('./routes/dashboard');
+const hrManagementRoutes = require('./routes/hrManagement');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/job-applications', jobApplicationRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api', hrManagementRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
