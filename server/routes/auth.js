@@ -13,8 +13,8 @@ const {
   changePassword,
   logout,
   deleteAccount
-} = require('../controllers/authController');
-const { protect, authorize } = require('../middleware/auth');
+} = require('../controllers/sqliteAuth');
+const { protect, authorize } = require('../middleware/sqliteAuth');
 
 // Configure multer for profile picture uploads
 const storage = multer.diskStorage({
@@ -49,6 +49,7 @@ router.post('/logout', logout);
 
 // Protected routes
 router.get('/me', protect, getMe);
+router.post('/me', protect, updateProfile);
 router.put('/me', protect, updateProfile);
 router.post('/upload-profile-picture', protect, upload.single('profilePicture'), uploadProfilePicture);
 router.put('/change-password', protect, changePassword);

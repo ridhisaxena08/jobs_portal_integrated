@@ -106,7 +106,8 @@ export const ProfilePage = () => {
         portfolio: formData.portfolio
       };
 
-      const response = await api.updateProfile(profileData);
+      // Use direct POST method for immediate update
+      const response = await api.updateProfileDirect(profileData);
       
       if (response.success) {
         setUser(response.data);

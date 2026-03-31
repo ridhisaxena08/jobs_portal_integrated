@@ -36,11 +36,32 @@ function initializeDatabase() {
     )
   `;
 
+  // Create users table
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'jobseeker',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
   db.run(createApplicationsTable, (err) => {
     if (err) {
       console.error('Error creating applications table:', err.message);
     } else {
       console.log('Applications table created successfully');
+    }
+  });
+
+  db.run(createUsersTable, (err) => {
+    if (err) {
+      console.error('Error creating users table:', err.message);
+    } else {
+      console.log('Users table created successfully');
     }
   });
 }
@@ -176,6 +197,58 @@ export const dbOperations = {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT COUNT(*) as count FROM applications';
       db.get(sql, [], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  // User operations
+  // Create new user
+  createUser: (user) => {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT INTO users (full_name, email, password, role)
+        VALUES (?, ?, ?, ?)
+      `;
+      
+      db.run(sql, [
+        user.full_name,
+        user.email,
+        user.password,
+        user.role || 'jobseeker'
+      ], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id: this.lastID, ...user });
+        }
+      });
+    });
+  },
+
+  // Get user by email
+  getUserByEmail: (email) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM users WHERE email = ?';
+      db.get(sql, [email], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  // Get user by ID
+  getUserById: (id) => {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT * FROM users WHERE id = ?';
+      db.get(sql, [id], (err, row) => {
         if (err) {
           reject(err);
         } else {

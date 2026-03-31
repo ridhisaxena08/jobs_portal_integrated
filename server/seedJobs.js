@@ -7,7 +7,11 @@ const sampleJobs = [
   {
     title: 'Senior Frontend Developer',
     company: 'TechCorp Solutions',
-    location: 'San Francisco, CA',
+    location: {
+      city: 'San Francisco',
+      state: 'CA',
+      country: 'USA'
+    },
     type: 'full-time',
     category: 'technology',
     description: 'We are looking for an experienced Frontend Developer to join our growing team. You will work on cutting-edge web applications using React, TypeScript, and modern frontend technologies.',
@@ -45,7 +49,11 @@ const sampleJobs = [
   {
     title: 'UX/UI Designer',
     company: 'Creative Studio',
-    location: 'New York, NY',
+    location: {
+      city: 'New York',
+      state: 'NY',
+      country: 'USA'
+    },
     type: 'full-time',
     category: 'design',
     description: 'Join our creative team as a UX/UI Designer. You will be responsible for creating beautiful, intuitive user interfaces and exceptional user experiences for our clients.',
@@ -83,7 +91,11 @@ const sampleJobs = [
   {
     title: 'Marketing Manager',
     company: 'Growth Marketing Inc',
-    location: 'Austin, TX',
+    location: {
+      city: 'Austin',
+      state: 'TX',
+      country: 'USA'
+    },
     type: 'full-time',
     category: 'marketing',
     description: 'We are seeking a dynamic Marketing Manager to lead our marketing initiatives and drive growth. You will develop and execute marketing strategies across multiple channels.',
@@ -122,7 +134,11 @@ const sampleJobs = [
   {
     title: 'Junior Backend Developer',
     company: 'StartupHub',
-    location: 'Seattle, WA',
+    location: {
+      city: 'Seattle',
+      state: 'WA',
+      country: 'USA'
+    },
     type: 'full-time',
     category: 'technology',
     description: 'Looking for a passionate Junior Backend Developer to join our fast-paced startup. You will work on building scalable APIs and backend systems.',
@@ -161,7 +177,11 @@ const sampleJobs = [
   {
     title: 'Data Analyst',
     company: 'Data Insights Co',
-    location: 'Chicago, IL',
+    location: {
+      city: 'Chicago',
+      state: 'IL',
+      country: 'USA'
+    },
     type: 'contract',
     category: 'technology',
     description: 'We need a skilled Data Analyst to help us make sense of complex datasets and provide actionable insights to drive business decisions.',
@@ -200,7 +220,11 @@ const sampleJobs = [
   {
     title: 'Product Manager',
     company: 'InnovateTech',
-    location: 'Boston, MA',
+    location: {
+      city: 'Boston',
+      state: 'MA',
+      country: 'USA'
+    },
     type: 'full-time',
     category: 'technology',
     description: 'Seeking an experienced Product Manager to lead product development and strategy for our innovative tech solutions.',
@@ -240,7 +264,11 @@ const sampleJobs = [
   {
     title: 'Content Writer Intern',
     company: 'Content Creators Ltd',
-    location: 'Los Angeles, CA',
+    location: {
+      city: 'Los Angeles',
+      state: 'CA',
+      country: 'USA'
+    },
     type: 'internship',
     category: 'other',
     description: 'Looking for a creative Content Writer intern to help create engaging content for our clients across various industries.',
@@ -295,9 +323,11 @@ const seedJobs = async () => {
   try {
     await connectDB();
     
-    // Clear existing jobs
-    await Job.deleteMany({});
-    console.log('🗑️ Cleared existing jobs');
+    // Drop the collection to clear any cached indexes
+    await mongoose.connection.db.dropCollection('jobs').catch(() => {
+      console.log('📝 Collection does not exist, will create new one');
+    });
+    console.log('🗑️ Dropped existing jobs collection');
     
     // Shuffle and insert random jobs
     const shuffledJobs = [...sampleJobs].sort(() => 0.5 - Math.random());

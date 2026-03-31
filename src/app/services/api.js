@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
 
 // API Service Class
 class ApiService {
@@ -115,6 +115,10 @@ class ApiService {
     return this.put('/auth/me', profileData);
   }
 
+  async updateProfileDirect(profileData) {
+    return this.post('/auth/me', profileData);
+  }
+
   async changePassword(passwordData) {
     return this.put('/auth/change-password', passwordData);
   }
@@ -220,6 +224,81 @@ class ApiService {
 
   async getUserById(userId) {
     return this.get(`/auth/users/${userId}`);
+  }
+
+  // Dashboard methods
+  async getHRDashboard() {
+    return this.get('/dashboard/hr');
+  }
+
+  async getJobSeekerDashboard() {
+    return this.get('/dashboard/job-seeker');
+  }
+
+  async getNotifications() {
+    return this.get('/notifications');
+  }
+
+  async markNotificationAsRead(notificationId) {
+    return this.put(`/notifications/${notificationId}/read`);
+  }
+
+  // HR Job Management
+  async postJob(jobData) {
+    return this.post('/jobs', jobData);
+  }
+
+  async updateJob(jobId, jobData) {
+    return this.put(`/jobs/${jobId}`, jobData);
+  }
+
+  async deleteJob(jobId) {
+    return this.delete(`/jobs/${jobId}`);
+  }
+
+  async getMyJobs(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.get(`/jobs/my-jobs?${queryString}`);
+  }
+
+  // Applicants Management
+  async getApplicants(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.get(`/applicants?${queryString}`);
+  }
+
+  async getApplicantById(applicantId) {
+    return this.get(`/applicants/${applicantId}`);
+  }
+
+  async updateApplicationStatus(applicationId, status) {
+    return this.put(`/job-applications/${applicationId}/status`, { status });
+  }
+
+  async shortlistCandidate(applicationId) {
+    return this.put(`/job-applications/${applicationId}/shortlist`);
+  }
+
+  async rejectCandidate(applicationId) {
+    return this.put(`/job-applications/${applicationId}/reject`);
+  }
+
+  // Employees Management
+  async getEmployees(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.get(`/employees?${queryString}`);
+  }
+
+  async hireCandidate(applicationId, employeeData) {
+    return this.post('/employees', { applicationId, ...employeeData });
+  }
+
+  async updateEmployee(employeeId, employeeData) {
+    return this.put(`/employees/${employeeId}`, employeeData);
+  }
+
+  async terminateEmployee(employeeId) {
+    return this.delete(`/employees/${employeeId}`);
   }
 
   // Check if user is authenticated

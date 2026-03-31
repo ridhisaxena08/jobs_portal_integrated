@@ -16,7 +16,11 @@ interface JobCardProps {
     id: string;
     title: string;
     company: string;
-    location: string;
+    location: {
+      city: string;
+      state: string;
+      country: string;
+    };
     type: 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
     salary: {
       min: number;
@@ -207,7 +211,7 @@ export const JobCard = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#666' }}>
             <MapPin size={14} />
-            <span>{job.location}</span>
+            <span>{`${job.location.city}, ${job.location.state}`}</span>
           </div>
           <span style={{
             fontSize: '11px',

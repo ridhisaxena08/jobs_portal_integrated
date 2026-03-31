@@ -1,22 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Clock, DollarSign, Star, Briefcase, Users, ArrowRight, TrendingUp, CheckCircle } from 'lucide-react';
+import { Search, Star, Briefcase, Users, ArrowRight, TrendingUp, CheckCircle } from 'lucide-react';
 import { Navbar } from '../components/shared/Navbar';
 import { JobCard } from '../components/shared/JobCard';
 import { Footer } from '../components/shared/Footer';
-import api from '../services/api';
+import api, { Job } from '../services/api';
 
 export const LandingPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [featuredJobs, setFeaturedJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
 
   // Fetch featured jobs from API
   useEffect(() => {
     const fetchFeaturedJobs = async () => {
       try {
-        setLoading(true);
         const response = await api.getJobs({ 
           page: 1, 
           limit: 6, 
@@ -30,8 +28,6 @@ export const LandingPage = () => {
         }
       } catch (error) {
         console.error('Error fetching featured jobs:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -75,7 +71,7 @@ export const LandingPage = () => {
     { step: '04', title: 'Get Hired', description: 'Connect with employers and land your next role.' },
   ];
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     window.location.href = `/jobs?q=${encodeURIComponent(searchQuery)}`;
   };

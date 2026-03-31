@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
-import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 export const LoginPage = () => {
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -14,34 +15,33 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.login({
-        email: formData.email,
-        password: formData.password
-      });
-
-      if (response.success) {
-        // Store user data
-        api.setCurrentUser(response.data.user);
-        
-        // Navigate to home
-        navigate('/');
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        // Redirect based on user role
+        const user = result.user;
+        if (user.role === 'employer') {
+          navigate('/hr-dashboard');
+        } else {
+          navigate('/job-seeker-dashboard');
+        }
       } else {
-        setError(response.message || 'Login failed');
+        setError(result.message || 'Login failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message || 'An error occurred during login');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,

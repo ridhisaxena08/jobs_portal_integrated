@@ -4,7 +4,14 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+// @ts-ignore
 import { dbOperations } from './database.js';
+// @ts-ignore
+import mongoose from 'mongoose';
+
+// Import auth routes
+// @ts-ignore
+import authRoutes from './routes/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,10 +31,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, uploadsDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     // Create unique filename with timestamp
     const timestamp = Date.now();
     const originalName = file.originalname;
@@ -38,7 +45,7 @@ const storage = multer.diskStorage({
 });
 
 // File filter for allowed file types
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
   
   if (allowedTypes.includes(file.mimetype)) {
@@ -57,6 +64,9 @@ const upload = multer({
 });
 
 // API Routes
+
+// Authentication routes
+app.use('/api/auth', authRoutes);
 
 // Submit application
 app.post('/api/applications', upload.single('resume'), async (req, res) => {
@@ -114,7 +124,7 @@ app.post('/api/applications', upload.single('resume'), async (req, res) => {
 });
 
 // Get all applications
-app.get('/api/applications', async (req, res) => {
+app.get('/api/applications', async (_req, res) => {
   try {
     const applications = await dbOperations.getAllApplications();
     res.json({ success: true, data: applications });
@@ -230,7 +240,7 @@ app.delete('/api/applications/:id', async (req, res) => {
 });
 
 // Get applications statistics
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', async (_req, res) => {
   try {
     const count = await dbOperations.getApplicationsCount();
     res.json({ 
@@ -259,7 +269,7 @@ app.get('/api/resume/:filename', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, _req: express.Request, res: express.Response) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File size too large. Maximum size is 2MB.' });
@@ -271,8 +281,18 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+app.listen(PORT, async () => {
+  // Connect to MongoDB
+  try {
+    // @ts-ignore
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jobportal');
+    console.log('🗄️  Connected to MongoDB');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    console.log('⚠️  Continuing without MongoDB - auth features will not work');
+  }
+  
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
   console.log(`📁 Uploads directory: ${uploadsDir}`);
 });

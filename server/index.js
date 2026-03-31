@@ -645,6 +645,14 @@ app.delete('/api/auth/me', authenticateToken, async (req: any, res) => {
   }
 });
 
+// Import new routes
+const dashboardRoutes = require('./routes/dashboard');
+const hrManagementRoutes = require('./routes/hrManagement');
+
+// Use new routes
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api', hrManagementRoutes);
+
 // Serve uploaded files (including profile pictures and resumes)
 app.get('/uploads/:filename', (req, res) => {
   const filename = req.params.filename;

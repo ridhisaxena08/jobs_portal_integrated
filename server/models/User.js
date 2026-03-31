@@ -31,17 +31,56 @@ const userSchema = new mongoose.Schema({
     enum: ['jobseeker', 'employer', 'admin'],
     default: 'jobseeker'
   },
+  // HR/Employer specific fields
+  company: {
+    name: String,
+    industry: String,
+    size: {
+      type: String,
+      enum: ['1-10', '11-50', '51-200', '201-500', '500+', 'startup', 'enterprise']
+    },
+    website: String,
+    description: String,
+    logo: String,
+    location: {
+      address: String,
+      city: String,
+      state: String,
+      country: String,
+      zipCode: String
+    },
+    founded: Date,
+    socialLinks: {
+      linkedin: String,
+      twitter: String,
+      facebook: String
+    }
+  },
   profile: {
     phone: String,
     location: String,
     bio: String,
     skills: [String],
-    experience: String,
-    education: String,
+    experience: [{
+      company: String,
+      position: String,
+      duration: String,
+      description: String
+    }],
+    education: [{
+      institution: String,
+      degree: String,
+      field: String,
+      startYear: Number,
+      endYear: Number
+    }],
     resume: String,
     linkedin: String,
     github: String,
-    portfolio: String
+    portfolio: String,
+    expectedSalary: String,
+    noticePeriod: String,
+    availability: String
   },
   preferences: {
     emailNotifications: { type: Boolean, default: true },

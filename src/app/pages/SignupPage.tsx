@@ -12,6 +12,7 @@ export const SignupPage = () => {
     password: '',
     confirmPassword: '',
     dob: '',
+    role: 'jobseeker', // Default role
     agreeToTerms: false
   });
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,8 @@ export const SignupPage = () => {
         email: formData.email,
         password: formData.password,
         dob: formData.dob,
-        confirmPassword: formData.confirmPassword
+        confirmPassword: formData.confirmPassword,
+        role: formData.role
       });
 
       if (response.success) {
@@ -349,7 +351,7 @@ export const SignupPage = () => {
 
         <div className="signup-card">
           <h1 className="signup-heading">Create account</h1>
-          <p className="signup-subheading">Join thousands of job seekers finding their dream careers</p>
+          <p className="signup-subheading">Join thousands of job seekers and employers finding their perfect match</p>
 
           <form className="signup-form" onSubmit={handleSubmit}>
             {/* Full Name */}
@@ -384,6 +386,35 @@ export const SignupPage = () => {
                   onChange={handleInputChange}
                   required
                 />
+              </div>
+            </div>
+
+            {/* Role Selection */}
+            <div className="form-group">
+              <label className="form-label">I am a</label>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="jobseeker"
+                    checked={formData.role === 'jobseeker'}
+                    onChange={handleInputChange}
+                    style={{ margin: 0 }}
+                  />
+                  <span style={{ fontSize: '14px', color: '#333' }}>Job Seeker</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="employer"
+                    checked={formData.role === 'employer'}
+                    onChange={handleInputChange}
+                    style={{ margin: 0 }}
+                  />
+                  <span style={{ fontSize: '14px', color: '#333' }}>HR/Employer</span>
+                </label>
               </div>
             </div>
 

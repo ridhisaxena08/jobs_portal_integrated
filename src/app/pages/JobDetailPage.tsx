@@ -416,7 +416,7 @@ export const JobDetailPage = () => {
                 <div className="job-meta">
                   <div className="job-meta-item">
                     <MapPin size={16} />
-                    {job.location}
+                    {job.location ? `${job.location.city}, ${job.location.state}` : 'Location not specified'}
                   </div>
                   <div className="job-meta-item">
                     <Briefcase size={16} />
